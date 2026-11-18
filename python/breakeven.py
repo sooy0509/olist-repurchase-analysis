@@ -23,7 +23,7 @@ print(f'100헤알 이상 주문 금액 중앙값 {V:.1f}헤알 ({(r.amount >= MI
 
 
 def breakeven(discount, fee):
-    """할인액(헤알)과 수수료율에서 손해가 없는 최소 쿠폰 효과 (fee=1이면 거래액 기준)"""
+    """할인액(헤알)과 수수료율에서 손해가 없는 최소 쿠폰 효과"""
     return s * discount / (V * fee - discount)
 
 
@@ -39,8 +39,6 @@ for fee in (0.10, 0.15, 0.20):
 # ---- 확대 판단 기준표 (수수료 15%) ----
 table = pd.DataFrame({'discount': [4, 6, 8, 10]})
 table['breakeven_fee15'] = (100 * breakeven(table.discount, 0.15)).round(1)
-table['breakeven_gmv'] = (100 * breakeven(table.discount, 1.0)).round(2)
-table['ratio'] = (table.breakeven_fee15 / table.breakeven_gmv).round(1)
 print(table.to_string(index=False))
 
 # ---- 그래프 데이터 (g14) ----
@@ -48,8 +46,7 @@ d = np.round(np.arange(0.5, 25.01, 0.5), 1)
 curve = pd.DataFrame({'discount': d,
                       'fee10': 100 * breakeven(d, 0.10),
                       'fee15': 100 * breakeven(d, 0.15),
-                      'fee20': 100 * breakeven(d, 0.20),
-                      'gmv': 100 * breakeven(d, 1.0)})
+                      'fee20': 100 * breakeven(d, 0.20)})
 val = curve.columns[1:]
 curve[val] = curve[val].where((curve[val] > 0) & (curve[val] <= 100)).round(2)   # 100% 초과·분모 음수 구간 제외
 curve.to_csv('chart_data/11_breakeven.csv', index=False)

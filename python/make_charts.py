@@ -1,5 +1,5 @@
 # =====================================================================
-# 그래프 (g01~g14)
+# 그래프 (g01~g15)
 #   입력: chart_data/ 의 CSV (SQL 결과, 10·11번은 python/ab_simulation.py, breakeven.py 결과)
 #   12~14번은 포트폴리오 슬라이드용 데이터
 #   출력: images/ 의 PNG
@@ -28,7 +28,9 @@ read = lambda f: pd.read_csv(os.path.join(DATA, f), encoding='utf-8-sig')
 
 def head(ax, title, sub=SUB):
     ax.set_title(title, loc='left', fontsize=15, color=K, pad=26, fontweight='bold')
-    ax.text(0, 1.03, sub, transform=ax.transAxes, fontsize=10, color=K)
+    # 부제는 그래프 위 8pt에 고정 (세로로 긴 그래프에서도 제목과 간격이 같게)
+    ax.annotate(sub, xy=(0, 1), xycoords='axes fraction', xytext=(0, 8), textcoords='offset points',
+                fontsize=10, color=K, va='bottom')
 
 
 def clean(ax, axis='y'):
@@ -254,7 +256,6 @@ if os.path.exists(os.path.join(DATA, '10_power_curve.csv')):
 if os.path.exists(os.path.join(DATA, '11_breakeven.csv')):
     be = read('11_breakeven.csv')
     fig, ax = plt.subplots(figsize=(9, 5), dpi=150)
-    ax.plot(be.discount, be.gmv, color=GRAY, lw=1.8, ls='--', label='거래액 기준 (참고)')
     for col, lab, cl in [('fee10', '수수료 10%', '#9cc1ee'), ('fee15', '수수료 15%', BLUE), ('fee20', '수수료 20%', '#1c5cab')]:
         ax.plot(be.discount, be[col], color=cl, lw=2.2 if col == 'fee15' else 1.6, label=lab)
     ax.axhline(33, color=ORANGE, lw=1.2, ls='--')
@@ -270,4 +271,20 @@ if os.path.exists(os.path.join(DATA, '11_breakeven.csv')):
     clean(ax)
     head(ax, '할인액별 손익분기 쿠폰 효과', '추가 재구매 1건 기준 · 100헤알 이상 쿠폰 · 남동부 30일 재구매 344건')
     save(fig, 'g14_breakeven.png')
+# ---- 그래프 15: 2018년 월별 거래액 성장률 (YoY) ---------------------------
+y = read('15_yoy_growth.csv')
+fig, ax = plt.subplots(figsize=(9, 4.8), dpi=150)
+ax.plot(y.mon, y.yoy_pct, color='#9cc1ee', lw=2.2, marker='o', ms=6, mec='white', mew=1.2, zorder=2)
+for i in (0, len(y) - 1):   # 처음과 끝만 강조
+    ax.plot(y.mon[i], y.yoy_pct[i], 'o', color=BLUE, ms=10, mec='white', mew=1.5, zorder=3)
+    ax.text(y.mon[i] + 0.15, y.yoy_pct[i] + 25, f'+{y.yoy_pct[i]:.0f}%', color=BLUE, fontsize=12, fontweight='bold')
+ax.set_xticks(y.mon)
+ax.set_xticklabels([f'{m_}월' for m_ in y.mon])
+ax.set_xlim(0.6, 8.9)
+ax.set_ylim(0, 800)
+ax.set_xlabel('월')
+ax.set_ylabel('성장률 (%)')
+clean(ax)
+head(ax, '2018년 월별 거래액 성장률(YoY)', '전년 같은 달 대비 · ' + SUB)
+save(fig, 'g15_yoy_growth.png')
 print('images/ 폴더에 저장')

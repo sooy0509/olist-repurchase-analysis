@@ -139,4 +139,57 @@ FROM order_base
 GROUP BY value_band
 ORDER BY value_band;
 -- [결과] 주문 비중 29.8 / 28.7 / 26.2 / 11.6 / 3.7%, 거래액 비중 6.9 / 15.8 / 27.4 / 25.1 / 24.8%
---        → 200헤알 이상 주문 15.3%가 거래액의 49.9%
+--        → 100헤알 미만 주문 58.5%, 200헤알 이상 주문 약 15%가 거래액의 49.9%
+
+
+-- ---------------------------------------------------------------------
+-- F. 100헤알 기준 요약 + 주문 금액 중앙값 (전국 / 남동부)
+--   남동부 = SP, RJ, MG, ES (고객 거주 주 기준)
+-- ---------------------------------------------------------------------
+WITH order_base AS (
+  SELECT o.order_id, c.customer_state, SUM(i.price) AS gmv
+  FROM orders o
+  JOIN customers c   ON o.customer_id = c.customer_id
+  JOIN order_items i ON o.order_id = i.order_id
+  WHERE o.order_purchase_timestamp >= '2017-01-01'
+    AND o.order_purchase_timestamp <  '2018-09-01'
+    AND o.order_status NOT IN ('canceled', 'unavailable')
+  GROUP BY o.order_id, c.customer_state
+)
+SELECT '전국' AS area,
+       COUNT(*)                                                            AS n_orders,
+       ROUND(100 * AVG(gmv < 100), 1)                                      AS lt100_pct,
+       ROUND(100 * SUM(CASE WHEN gmv >= 200 THEN gmv END) / SUM(gmv), 1)  AS gmv_ge200_pct,
+       ROUND(AVG(gmv), 1)                                                  AS avg_gmv
+FROM order_base
+UNION ALL
+SELECT '남동부',
+       COUNT(*),
+       ROUND(100 * AVG(gmv < 100), 1),
+       ROUND(100 * SUM(CASE WHEN gmv >= 200 THEN gmv END) / SUM(gmv), 1),
+       ROUND(AVG(gmv), 1)
+FROM order_base
+WHERE customer_state IN ('SP', 'RJ', 'MG', 'ES');
+-- [결과] 전국 97,905건: 100헤알 미만 58.5%, 200헤알 이상 주문의 거래액 49.9%, 평균 137.4헤알
+--        남동부 67,146건: 100헤알 미만 60.0%, 200헤알 이상 주문의 거래액 47.3%, 평균 131.0헤알
+
+-- 주문 금액 중앙값 (주문 수가 홀수면 가운데 값, 짝수면 가운데 두 값의 평균)
+WITH order_base AS (
+  SELECT o.order_id, SUM(i.price) AS gmv
+  FROM orders o
+  JOIN order_items i ON o.order_id = i.order_id
+  WHERE o.order_purchase_timestamp >= '2017-01-01'
+    AND o.order_purchase_timestamp <  '2018-09-01'
+    AND o.order_status NOT IN ('canceled', 'unavailable')
+  GROUP BY o.order_id
+),
+r AS (
+  SELECT gmv,
+         ROW_NUMBER() OVER (ORDER BY gmv) AS rn,
+         COUNT(*)     OVER ()             AS n
+  FROM order_base
+)
+SELECT MAX(n) AS n_orders,
+       ROUND(AVG(CASE WHEN rn IN (FLOOR((n + 1) / 2), CEIL((n + 1) / 2)) THEN gmv END), 1) AS median_gmv
+FROM r;
+-- [결과] 97,905건, 중앙값 86.9헤알 (평균 137.4헤알보다 낮아 소수의 큰 주문이 평균을 끌어올림)
